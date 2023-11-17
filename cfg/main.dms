@@ -1,0 +1,84 @@
+container FileChecker
+{
+	// To Configure: path needs to be without spaces and replace backslashed with double forward slashes!
+	// parameter<string> FOI     := '"C:/LocalData/rvnl_materialen/Export_20231106';       //Folder Of Interest
+	parameter<string> FOI     := Expand(., '"%ProjDir%/data');
+	//
+	
+	parameter<bool> WriteFilesCSV := GetFolderInfo/writeObjectList == 0 ? TRUE : FALSE;
+	
+	container GetFolderInfo
+	{
+		parameter<string> FOI_edit          := replace(FOI, '/', '\\');
+		parameter<string> ComSpec           := Expand(., '%env:ComSpec%');
+		parameter<string> FileNameDirInfo   := Expand(., '%LocalDataProjDir%/dirinfo.csv');
+		parameter<string> DirCmdOrgMD       := Expand(., 'MD "%LocalDataProjDir%"');
+		parameter<string> DirCmdOrgHeader   := 'echo path > '+FileNameDirInfo;
+		parameter<string> DirCmdOrgDir      := 'Dir '+ FOI_edit +'\\*.tif" >> ' + FileNameDirInfo ;
+
+		parameter<string> DirCmd            := Replace(DirCmdOrgMD, '/', '\\') + ' & ' + Replace(DirCmdOrgHeader, '/', '\\') + ' & ' + Replace(DirCmdOrgDir, '/', '\\') + ' /B /S';
+		parameter<string> NewLine           : ['\n'];
+		parameter<uint32> writeObjectList   := exec_ec(ComSpec, '/c ' + DirCmd, Expand(., '%LocalDataProjDir%'));
+	}
+	
+	unit<uint32> Files 
+	: Storagename = "=GetFolderInfo/FileNameDirInfo"
+	, StorageType = "gdal.vect"
+	, StorageReadOnly = "true"
+	{
+		attribute<string> name := AsItemName(path);
+	}
+	
+	container Read_Files :=
+		for_each_ne(
+			Files/name
+			, 'Read_Files_T('+quote(Files/path)+')'
+		), ExplicitSuppliers = "WriteFilesCSV";
+		
+	Template Read_Files_T
+	{
+		parameter<string> path;
+		//
+		
+		unit<ipoint> Read_unit_float64
+		: StorageName = "=path"
+		, StorageType = "gdal.grid"
+		, StorageReadOnly = "true"
+		{
+			attribute<float64> GridData;  //value type needs to be derived from tif-file.
+			parameter<bool>    Sum_Is_zero := sum_float64(GridData) == 0d;
+			parameter<bool>    All_Is_Null := All(IsNull(GridData));
+		}
+		unit<ipoint> Read_unit_uint32
+		: StorageName = "=path"
+		, StorageType = "gdal.grid"
+		, StorageReadOnly = "true"
+		{
+			attribute<uint32>  GridData;  //value type needs to be derived from tif-file.
+			parameter<bool>    Sum_Is_zero := sum_uint32(GridData) == 0;
+			parameter<bool>    All_Is_Null := All(IsNull(GridData));
+		}
+		unit<ipoint> Read_unit_uint8
+		: StorageName = "=path"
+		, StorageType = "gdal.grid"
+		, StorageReadOnly = "true"
+		{
+			attribute<uint8>   GridData;  //value type needs to be derived from tif-file.
+			parameter<bool>    Sum_Is_zero := sum_uint8(GridData) == 0b;
+			parameter<bool>    All_Is_Null := All(IsNull(GridData));
+		}
+	}
+	
+	unit<uint32> Results := Files
+	{
+		attribute<string> name                 := Files/name;
+		attribute<bool>   Is_all_zero_float64  := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit_float64/Sum_Is_zero')+')';
+		attribute<bool>   Is_all_null_float64  := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit_float64/All_Is_Null')+')';
+		
+		attribute<bool>   Is_all_zero_uint32   := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit_uint32/Sum_Is_zero')+')';
+		attribute<bool>   Is_all_null_uint32   := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit_uint32/All_Is_Null')+')';
+		
+		attribute<bool>   Is_all_zero_uint8    := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit_uint8/Sum_Is_zero')+')';
+		attribute<bool>   Is_all_null_uint8    := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit_uint8/All_Is_Null')+')';
+	}
+}
