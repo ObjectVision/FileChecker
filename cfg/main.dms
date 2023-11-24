@@ -1,8 +1,11 @@
 container FileChecker
 {
 	// To Configure: path needs to be without spaces and replace backslashed with double forward slashes!
+	// parameter<string> FOI     := '"C:/LocalData/rvnl_materialen/Export/Materialen/20231113_WLO_Hoog_BAU';       //Folder Of Interest
+	parameter<string> FOI     := '"C:/LocalData/rvnl_materialen/Export/Materialen/20231113_Basisjaar';       //Folder Of Interest  
+	// parameter<string> FOI     := '"C:/LocalData/rvnl_materialen/20230704_ExportNaarCMLLeiden_20230704/NaarCMLLeiden';       //Folder Of Interest
 	// parameter<string> FOI     := '"C:/LocalData/rvnl_materialen/Export_20231106';       //Folder Of Interest
-	parameter<string> FOI     := Expand(., '"%ProjDir%/data');
+	// parameter<string> FOI     := Expand(., '"%ProjDir%/data');
 	//
 	
 	parameter<bool> WriteFilesCSV := GetFolderInfo/writeObjectList == 0 ? TRUE : FALSE;
@@ -26,7 +29,8 @@ container FileChecker
 	, StorageType = "gdal.vect"
 	, StorageReadOnly = "true"
 	{
-		attribute<string> name := AsItemName(path);
+		attribute<string> name         := AsItemName(path);
+		attribute<string> name_cleaned := replace(name, AsItemName(replace(FOI, '"','')), '');
 	}
 	
 	container Read_Files :=
@@ -45,16 +49,20 @@ container FileChecker
 		, StorageType = "gdal.grid"
 		, StorageReadOnly = "true"
 		{
-			attribute<uint32> GridData;  //value type needs to be derived from tif-file.
-			parameter<bool>    Sum_Is_zero := sum_uint32(GridData) == 0;
+			attribute<uint64>  GridData;  //value type needs to be derived from tif-file.
+			parameter<bool>    All_Is_Zero := All(IsZero(GridData));
 			parameter<bool>    All_Is_Null := All(IsNull(GridData));
+			parameter<uint64>  Sum         := sum_uint64(GridData);
 		}
 	}
 	
 	unit<uint32> Results := Files
 	{
-		attribute<string> name                 := Files/name;
-		attribute<bool>   Is_all_zero_float64  := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit/Sum_Is_zero')+')';
-		attribute<bool>   Is_all_null_float64  := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit/All_Is_Null')+')';
+		attribute<string> name         := Files/name;
+		attribute<string> name_cleaned := Files/name_cleaned;
+		
+		attribute<uint64> Sum          := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit/Sum')+')';
+		attribute<bool>   Is_all_zero  := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit/All_Is_Zero')+')';
+		attribute<bool>   Is_all_null  := ='union_data(., '+AsItemList('Read_Files/'+name+'/Read_unit/All_Is_Null')+')';
 	}
 }
