@@ -2,7 +2,7 @@ container FileChecker
 {
 	// To Configure: path needs to be without spaces and replace backslashed with double forward slashes!
 	// parameter<string> FOI     := '"C:/LocalData/rvnl_materialen/Export/Materialen/20231113_WLO_Hoog_BAU';       //Folder Of Interest
-	parameter<string> FOI     := '"C:/LocalData/rvnl_materialen/Export/Materialen/20231113_Basisjaar';       //Folder Of Interest  
+	parameter<string> FOI     := '"C:/LocalData/rvnl_materialen/Export_20231219';       //Folder Of Interest  
 	// parameter<string> FOI     := '"C:/LocalData/rvnl_materialen/20230704_ExportNaarCMLLeiden_20230704/NaarCMLLeiden';       //Folder Of Interest
 	// parameter<string> FOI     := '"C:/LocalData/rvnl_materialen/Export_20231106';       //Folder Of Interest
 	// parameter<string> FOI     := Expand(., '"%ProjDir%/data');
